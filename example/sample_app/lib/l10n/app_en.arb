@@ -1,0 +1,8 @@
+{
+  "@@locale": "en",
+  "appTitle": "sample_app",
+  "hello": "Hello",
+  "loading": "Loading...",
+  "errorGeneric": "Something went wrong",
+  "retry": "Retry"
+}

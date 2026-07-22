@@ -8,6 +8,8 @@
 ///   kebabCase   → `user-profile`
 ///   titleCase   → `User Profile`
 class NameUtils {
+  /// Creates casing helpers from [raw] (`snake_case`, `PascalCase`,
+  /// `camelCase`, or `kebab-case`).
   NameUtils(String raw) : _words = _split(raw);
 
   final List<String> _words;

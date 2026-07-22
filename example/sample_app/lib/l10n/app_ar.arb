@@ -1,0 +1,8 @@
+{
+  "@@locale": "ar",
+  "appTitle": "sample_app",
+  "hello": "مرحبا",
+  "loading": "جاري التحميل...",
+  "errorGeneric": "حدث خطأ ما",
+  "retry": "إعادة المحاولة"
+}

@@ -236,7 +236,7 @@ class InitCommand extends Command<void> {
   void _printBanner() {
     stdout.writeln('');
     stdout.writeln('\x1B[1m\x1B[34m╔════════════════════════════════════╗\x1B[0m');
-    stdout.writeln('\x1B[1m\x1B[34m║   flutter_architect  v2.0.0        ║\x1B[0m');
+    stdout.writeln('\x1B[1m\x1B[34m║   flutter_architect  v2.0.2        ║\x1B[0m');
     stdout.writeln('\x1B[1m\x1B[34m║   Architecture Generator           ║\x1B[0m');
     stdout.writeln('\x1B[1m\x1B[34m╚════════════════════════════════════╝\x1B[0m');
   }

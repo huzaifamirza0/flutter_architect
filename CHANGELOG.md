@@ -1,3 +1,16 @@
+## 2.0.2
+
+- Added a complete demo under `example/sample_app/`: full Clean Architecture
+  snapshot (app/core/features/auth, flavors, l10n, DI wiring) for browsing on
+  pub.dev / GitHub.
+- Expanded `example/example.md` into an end-to-end walkthrough.
+
+## 2.0.1
+
+- Added `example/` per [pub package layout](https://dart.dev/tools/pub/package-layout#examples)
+  (`example/example.md` + `example/main.dart` with `package:` import).
+- Documented `NameUtils` constructor for complete public API docs.
+
 ## 2.0.0
 
 Production-oriented release: stronger architecture scaffolding plus localization, flavors, CI/CD, and micro-generators.

@@ -284,6 +284,16 @@ flutter run -t lib/main_development.dart
 
 ---
 
+## Examples
+
+See the [`example/`](example/) folder:
+
+- [`example/example.md`](example/example.md) — full CLI walkthrough (shown on pub.dev **Example** tab)
+- [`example/main.dart`](example/main.dart) — `NameUtils` API demo
+- [`example/sample_app/`](example/sample_app/) — **complete generated Clean Architecture sample** (app, core, auth feature, flavors, l10n)
+
+---
+
 ## Contributing
 
 Issues and PRs are welcome — new templates, state-management options, or CLI improvements.

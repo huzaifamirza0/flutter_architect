@@ -1,0 +1,24 @@
+name: sample_app
+description: Demo output of flutter_architect init (Clean Architecture + BLoC).
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.6.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+  dartz: ^0.10.1
+  equatable: ^2.0.7
+  get_it: ^8.0.0
+  dio: ^5.7.0
+  flutter_bloc: ^9.0.0
+  go_router: ^14.0.0
+
+flutter:
+  generate: true
+  uses-material-design: true
