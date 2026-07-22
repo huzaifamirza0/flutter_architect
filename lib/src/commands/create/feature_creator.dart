@@ -3,6 +3,7 @@ import 'package:args/command_runner.dart';
 import '../../utils/name_utils.dart';
 import '../../utils/validation_utils.dart';
 import '../../templates/bloc_templates.dart';
+import '../../templates/clean_templates.dart';
 import '../../templates/mvvm_templates.dart';
 
 class FeatureCreatorCommand extends Command<void> {
@@ -10,7 +11,8 @@ class FeatureCreatorCommand extends Command<void> {
   final String name = 'feature';
 
   @override
-  final String description = 'Scaffold a full Clean Architecture feature module.';
+  final String description =
+      'Scaffold a full feature module (Clean Architecture or MVVM).';
 
   @override
   String get invocation => 'flutter_architect create feature <name>';
@@ -20,8 +22,8 @@ class FeatureCreatorCommand extends Command<void> {
       'state-management',
       abbr: 's',
       allowed: ['bloc', 'riverpod', 'provider', 'getx', 'none'],
-      defaultsTo: 'bloc',
-      help: 'State management to scaffold inside the feature.',
+      help:
+          'State management to scaffold. Defaults to value saved in architect.yaml.',
     );
   }
 
@@ -32,111 +34,295 @@ class FeatureCreatorCommand extends Command<void> {
 
     final rest = argResults!.rest;
     if (rest.isEmpty) {
-      usageException('Please provide a feature name.\n  Example: flutter_architect create feature auth');
+      usageException(
+          'Please provide a feature name.\n  Example: flutter_architect create feature auth');
     }
 
+    final config = ValidationUtils.readConfig(root);
     final rawName = rest.first;
-    final sm = argResults!['state-management'] as String;
+    final sm = (argResults!['state-management'] as String?) ??
+        config.stateManagement;
     final names = NameUtils(rawName);
-    final arch = ValidationUtils.readArchitecture(root);
 
-    stdout.writeln('\n\x1B[34mCreating feature: ${names.pascalCase}\x1B[0m\n');
+    stdout.writeln('\n\x1B[34mCreating feature: ${names.pascalCase}\x1B[0m');
+    stdout.writeln(
+        '  Architecture: ${config.architecture} · State: $sm\n');
 
-    if (arch == 'mvvm') {
-      _generateMvvm(root, names);
+    if (config.isMvvm) {
+      _generateMvvm(root, names, sm, config);
     } else {
-      _generateClean(root, names, sm);
+      _generateClean(root, names, sm, config);
     }
 
-    stdout.writeln('\n\x1B[32m✅  Feature "${names.pascalCase}" created successfully!\x1B[0m');
+    stdout.writeln(
+        '\n\x1B[32m✅  Feature "${names.pascalCase}" created successfully!\x1B[0m');
   }
 
-  // ── MVVM scaffold ─────────────────────────────────────────────────
-  void _generateMvvm(String root, NameUtils names) {
+  // ── MVVM ───────────────────────────────────────────────────────────
+  void _generateMvvm(
+    String root,
+    NameUtils names,
+    String sm,
+    ProjectConfig config,
+  ) {
     final featurePath = '$root/lib/features/${names.snakeCase}';
-    final folders = [
+    final folders = <String>[
       '$featurePath/models',
+      '$featurePath/services',
       '$featurePath/views/widgets',
-      '$featurePath/viewmodels',
       '$root/test/features/${names.snakeCase}',
     ];
+
+    switch (sm) {
+      case 'bloc':
+        folders.add('$featurePath/bloc');
+      case 'riverpod':
+        folders.add('$featurePath/providers');
+      case 'getx':
+        folders
+          ..add('$featurePath/controllers')
+          ..add('$featurePath/bindings');
+      default:
+        folders.add('$featurePath/viewmodels');
+    }
+
+    if (config.useGetIt && sm != 'getx' && sm != 'riverpod') {
+      folders.add('$featurePath/di');
+    }
+
     _createFolders(root, folders);
 
-    _write('$featurePath/models/${names.snakeCase}_model.dart',
-        MvvmTemplates.model(names.pascalCase, names.snakeCase));
-    _write('$featurePath/viewmodels/${names.snakeCase}_viewmodel.dart',
-        MvvmTemplates.viewModel(names.pascalCase, names.snakeCase));
-    _write('$featurePath/views/${names.snakeCase}_view.dart',
-        MvvmTemplates.view(names.pascalCase, names.snakeCase));
+    _write(
+      '$featurePath/models/${names.snakeCase}_model.dart',
+      MvvmTemplates.model(names.pascalCase, names.snakeCase),
+    );
+    _write(
+      '$featurePath/services/${names.snakeCase}_service.dart',
+      MvvmTemplates.service(names.pascalCase, names.snakeCase),
+    );
+
+    switch (sm) {
+      case 'bloc':
+        _write(
+          '$featurePath/bloc/${names.snakeCase}_bloc.dart',
+          MvvmTemplates.blocViewModel(names.pascalCase, names.snakeCase),
+        );
+        _write(
+          '$featurePath/bloc/${names.snakeCase}_event.dart',
+          MvvmTemplates.blocEvent(names.pascalCase),
+        );
+        _write(
+          '$featurePath/bloc/${names.snakeCase}_state.dart',
+          MvvmTemplates.blocState(names.pascalCase, names.snakeCase),
+        );
+        _write(
+          '$featurePath/views/${names.snakeCase}_view.dart',
+          MvvmTemplates.blocView(
+            names.pascalCase,
+            names.snakeCase,
+            useGetIt: config.useGetIt,
+          ),
+        );
+      case 'riverpod':
+        _write(
+          '$featurePath/providers/${names.snakeCase}_provider.dart',
+          MvvmTemplates.riverpodProvider(names.pascalCase, names.snakeCase),
+        );
+        _write(
+          '$featurePath/views/${names.snakeCase}_view.dart',
+          MvvmTemplates.riverpodView(names.pascalCase, names.snakeCase),
+        );
+      case 'getx':
+        _write(
+          '$featurePath/controllers/${names.snakeCase}_controller.dart',
+          MvvmTemplates.getxController(names.pascalCase, names.snakeCase),
+        );
+        _write(
+          '$featurePath/bindings/${names.snakeCase}_binding.dart',
+          MvvmTemplates.getxBinding(names.pascalCase, names.snakeCase),
+        );
+        _write(
+          '$featurePath/views/${names.snakeCase}_view.dart',
+          MvvmTemplates.getxView(names.pascalCase, names.snakeCase),
+        );
+      default:
+        _write(
+          '$featurePath/viewmodels/${names.snakeCase}_viewmodel.dart',
+          MvvmTemplates.viewModel(names.pascalCase, names.snakeCase),
+        );
+        _write(
+          '$featurePath/views/${names.snakeCase}_view.dart',
+          MvvmTemplates.view(
+            names.pascalCase,
+            names.snakeCase,
+            useGetIt: config.useGetIt,
+          ),
+        );
+    }
+
+    if (config.useGetIt && sm != 'getx' && sm != 'riverpod') {
+      _write(
+        '$featurePath/di/${names.snakeCase}_injection.dart',
+        MvvmTemplates.injection(
+          names.pascalCase,
+          names.snakeCase,
+          stateManagement: sm == 'none' ? 'none' : sm,
+        ),
+      );
+      ValidationUtils.registerFeatureInLocator(
+        root: root,
+        pascalName: names.pascalCase,
+        snakeName: names.snakeCase,
+        relativeImport:
+            '../../features/${names.snakeCase}/di/${names.snakeCase}_injection.dart',
+      );
+    }
   }
 
-  // ── Clean Architecture scaffold ───────────────────────────────────
-  void _generateClean(String root, NameUtils names, String sm) {
+  // ── Clean Architecture ─────────────────────────────────────────────
+  void _generateClean(
+    String root,
+    NameUtils names,
+    String sm,
+    ProjectConfig config,
+  ) {
     final featurePath = '$root/lib/features/${names.snakeCase}';
-    final folders = [
-      '$featurePath/data/datasource',
+    final folders = <String>[
+      '$featurePath/data/datasources',
       '$featurePath/data/models',
-      '$featurePath/data/repository',
+      '$featurePath/data/repositories',
       '$featurePath/domain/entities',
-      '$featurePath/domain/repository',
+      '$featurePath/domain/repositories',
       '$featurePath/domain/usecases',
       '$featurePath/presentation/pages',
       '$featurePath/presentation/widgets',
       '$featurePath/routes',
+      '$root/test/features/${names.snakeCase}/data',
+      '$root/test/features/${names.snakeCase}/domain',
+      '$root/test/features/${names.snakeCase}/presentation',
     ];
 
     switch (sm) {
       case 'bloc':
         folders.add('$featurePath/presentation/bloc');
       case 'riverpod':
-        folders.add('$featurePath/presentation/providers');
       case 'provider':
         folders.add('$featurePath/presentation/providers');
       case 'getx':
-        folders.add('$featurePath/presentation/controllers');
-        folders.add('$featurePath/bindings');
+        folders
+          ..add('$featurePath/presentation/controllers')
+          ..add('$featurePath/bindings');
     }
 
-    folders.addAll([
-      '$root/test/features/${names.snakeCase}/data',
-      '$root/test/features/${names.snakeCase}/domain',
-      '$root/test/features/${names.snakeCase}/presentation',
-    ]);
+    if (config.useGetIt) {
+      folders.add('$featurePath/di');
+    }
 
     _createFolders(root, folders);
 
-    _write('$featurePath/domain/entities/${names.snakeCase}_entity.dart',
-        _entityContent(names));
-    _write('$featurePath/data/models/${names.snakeCase}_model.dart',
-        _modelContent(names));
-    _write('$featurePath/domain/repository/${names.snakeCase}_repository.dart',
-        _repositoryAbstractContent(names));
-    _write('$featurePath/data/repository/${names.snakeCase}_repository_impl.dart',
-        _repositoryImplContent(names));
-    _write('$featurePath/data/datasource/${names.snakeCase}_remote_datasource.dart',
-        _datasourceAbstractContent(names));
-    _write('$featurePath/data/datasource/${names.snakeCase}_remote_datasource_impl.dart',
-        _datasourceImplContent(names));
-    _write('$featurePath/presentation/pages/${names.snakeCase}_page.dart',
-        _pageContent(names));
-    _write('$featurePath/routes/${names.snakeCase}_routes.dart',
-        _routesContent(names));
+    // Domain
+    _write(
+      '$featurePath/domain/entities/${names.snakeCase}_entity.dart',
+      CleanTemplates.entity(names),
+    );
+    _write(
+      '$featurePath/domain/repositories/${names.snakeCase}_repository.dart',
+      CleanTemplates.repository(names),
+    );
+    _write(
+      '$featurePath/domain/usecases/get_all_${names.snakeCase}_usecase.dart',
+      CleanTemplates.getAllUseCase(names),
+    );
 
-    switch (sm) {
-      case 'bloc':
-        _writeBlocFiles(featurePath, names);
-      case 'riverpod':
-        _writeRiverpodFiles(featurePath, names);
-      case 'provider':
-        _writeProviderFiles(featurePath, names);
-      case 'getx':
-        _writeGetXFiles(featurePath, names, root);
+    // Data
+    _write(
+      '$featurePath/data/models/${names.snakeCase}_model.dart',
+      CleanTemplates.model(names),
+    );
+    _write(
+      '$featurePath/data/datasources/${names.snakeCase}_remote_datasource.dart',
+      CleanTemplates.remoteDatasource(names),
+    );
+    _write(
+      '$featurePath/data/datasources/${names.snakeCase}_remote_datasource_impl.dart',
+      CleanTemplates.remoteDatasourceImpl(names),
+    );
+
+    if (config.useHive) {
+      _write(
+        '$featurePath/data/datasources/${names.snakeCase}_local_datasource.dart',
+        CleanTemplates.localDatasource(names),
+      );
+      _write(
+        '$featurePath/data/datasources/${names.snakeCase}_local_datasource_impl.dart',
+        CleanTemplates.localDatasourceImpl(names),
+      );
     }
 
     _write(
-      '$root/test/features/${names.snakeCase}/domain/${names.snakeCase}_repository_test.dart',
-      _testStubContent(names),
+      '$featurePath/data/repositories/${names.snakeCase}_repository_impl.dart',
+      CleanTemplates.repositoryImpl(names, useHive: config.useHive),
     );
+
+    // Presentation
+    switch (sm) {
+      case 'bloc':
+        _writeBlocFiles(featurePath, names);
+        _write(
+          '$featurePath/presentation/pages/${names.snakeCase}_page.dart',
+          CleanTemplates.pageBloc(names, useGetIt: config.useGetIt),
+        );
+      case 'riverpod':
+        _writeRiverpodFiles(featurePath, names);
+        _write(
+          '$featurePath/presentation/pages/${names.snakeCase}_page.dart',
+          CleanTemplates.pageRiverpod(names),
+        );
+      case 'provider':
+        _writeProviderFiles(featurePath, names);
+        _write(
+          '$featurePath/presentation/pages/${names.snakeCase}_page.dart',
+          CleanTemplates.pageProvider(names, useGetIt: config.useGetIt),
+        );
+      case 'getx':
+        _writeGetXFiles(featurePath, names);
+        _write(
+          '$featurePath/presentation/pages/${names.snakeCase}_page.dart',
+          CleanTemplates.pageGetx(names),
+        );
+      default:
+        _write(
+          '$featurePath/presentation/pages/${names.snakeCase}_page.dart',
+          CleanTemplates.pagePlain(names),
+        );
+    }
+
+    _write(
+      '$featurePath/routes/${names.snakeCase}_routes.dart',
+      CleanTemplates.routes(names),
+    );
+    _write(
+      '$root/test/features/${names.snakeCase}/domain/${names.snakeCase}_repository_test.dart',
+      CleanTemplates.testStub(names),
+    );
+
+    if (config.useGetIt) {
+      _write(
+        '$featurePath/di/${names.snakeCase}_injection.dart',
+        CleanTemplates.injection(
+          names,
+          stateManagement: sm,
+          useHive: config.useHive,
+        ),
+      );
+      ValidationUtils.registerFeatureInLocator(
+        root: root,
+        pascalName: names.pascalCase,
+        snakeName: names.snakeCase,
+        relativeImport:
+            '../../features/${names.snakeCase}/di/${names.snakeCase}_injection.dart',
+      );
+    }
   }
 
   void _createFolders(String root, List<String> folders) {
@@ -146,12 +332,10 @@ class FeatureCreatorCommand extends Command<void> {
         dir.createSync(recursive: true);
         File('$f/.gitkeep').writeAsStringSync('');
       }
-      final display = f.replaceAll('$root/', '');
+      final display = f.replaceAll('$root/', '').replaceAll('$root\\', '');
       stdout.writeln('  \x1B[32m✓\x1B[0m  $display');
     }
   }
-
-  // ── file writers ──────────────────────────────────────────────────
 
   void _writeBlocFiles(String featurePath, NameUtils names) {
     _write(
@@ -172,19 +356,37 @@ class FeatureCreatorCommand extends Command<void> {
     _write(
       '$featurePath/presentation/providers/${names.snakeCase}_provider.dart',
       '''import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/base/usecase.dart';
+import '../../domain/entities/${names.snakeCase}_entity.dart';
+import '../../domain/usecases/get_all_${names.snakeCase}_usecase.dart';
 
-// TODO: replace with your actual state type
-final ${names.camelCase}Provider = StateNotifierProvider<${names.pascalCase}Notifier, AsyncValue<void>>(
-  (ref) => ${names.pascalCase}Notifier(),
+/// Override this in tests / bootstrap with a real [GetAll${names.pascalCase}UseCase].
+final getAll${names.pascalCase}UseCaseProvider = Provider<GetAll${names.pascalCase}UseCase>(
+  (ref) => throw UnimplementedError(
+    'Override getAll${names.pascalCase}UseCaseProvider with a real use case',
+  ),
 );
 
-class ${names.pascalCase}Notifier extends StateNotifier<AsyncValue<void>> {
-  ${names.pascalCase}Notifier() : super(const AsyncValue.data(null));
+final ${names.camelCase}Provider = StateNotifierProvider<${names.pascalCase}Notifier,
+    AsyncValue<List<${names.pascalCase}Entity>>>(
+  (ref) => ${names.pascalCase}Notifier(ref.watch(getAll${names.pascalCase}UseCaseProvider)),
+);
+
+class ${names.pascalCase}Notifier
+    extends StateNotifier<AsyncValue<List<${names.pascalCase}Entity>>> {
+  ${names.pascalCase}Notifier(this._getAll) : super(const AsyncValue.loading()) {
+    load();
+  }
+
+  final GetAll${names.pascalCase}UseCase _getAll;
 
   Future<void> load() async {
     state = const AsyncValue.loading();
-    // TODO: call use-case / repository
-    state = const AsyncValue.data(null);
+    final result = await _getAll(const NoParams());
+    state = result.fold(
+      (failure) => AsyncValue.error(failure.message, StackTrace.current),
+      AsyncValue.data,
+    );
   }
 }
 ''',
@@ -195,15 +397,34 @@ class ${names.pascalCase}Notifier extends StateNotifier<AsyncValue<void>> {
     _write(
       '$featurePath/presentation/providers/${names.snakeCase}_provider.dart',
       '''import 'package:flutter/foundation.dart';
+import '../../../../core/base/usecase.dart';
+import '../../domain/entities/${names.snakeCase}_entity.dart';
+import '../../domain/usecases/get_all_${names.snakeCase}_usecase.dart';
 
 class ${names.pascalCase}Provider extends ChangeNotifier {
+  ${names.pascalCase}Provider(this._getAll);
+
+  final GetAll${names.pascalCase}UseCase _getAll;
+
   bool _isLoading = false;
+  String? _errorMessage;
+  List<${names.pascalCase}Entity> _items = const [];
+
   bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+  List<${names.pascalCase}Entity> get items => _items;
 
   Future<void> load() async {
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
-    // TODO: call use-case / repository
+
+    final result = await _getAll(const NoParams());
+    result.fold(
+      (failure) => _errorMessage = failure.message,
+      (items) => _items = items,
+    );
+
     _isLoading = false;
     notifyListeners();
   }
@@ -212,13 +433,22 @@ class ${names.pascalCase}Provider extends ChangeNotifier {
     );
   }
 
-  void _writeGetXFiles(String featurePath, NameUtils names, String root) {
+  void _writeGetXFiles(String featurePath, NameUtils names) {
     _write(
       '$featurePath/presentation/controllers/${names.snakeCase}_controller.dart',
       '''import 'package:get/get.dart';
+import '../../../../core/base/usecase.dart';
+import '../../domain/entities/${names.snakeCase}_entity.dart';
+import '../../domain/usecases/get_all_${names.snakeCase}_usecase.dart';
 
 class ${names.pascalCase}Controller extends GetxController {
+  ${names.pascalCase}Controller(this._getAll);
+
+  final GetAll${names.pascalCase}UseCase _getAll;
+
   final isLoading = false.obs;
+  final errorMessage = RxnString();
+  final items = <${names.pascalCase}Entity>[].obs;
 
   @override
   void onInit() {
@@ -228,7 +458,12 @@ class ${names.pascalCase}Controller extends GetxController {
 
   Future<void> load() async {
     isLoading.value = true;
-    // TODO: call use-case / repository
+    errorMessage.value = null;
+    final result = await _getAll(const NoParams());
+    result.fold(
+      (failure) => errorMessage.value = failure.message,
+      (data) => items.assignAll(data),
+    );
     isLoading.value = false;
   }
 }
@@ -237,12 +472,15 @@ class ${names.pascalCase}Controller extends GetxController {
     _write(
       '$featurePath/bindings/${names.snakeCase}_binding.dart',
       '''import 'package:get/get.dart';
+import '../domain/usecases/get_all_${names.snakeCase}_usecase.dart';
 import '../presentation/controllers/${names.snakeCase}_controller.dart';
 
 class ${names.pascalCase}Binding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<${names.pascalCase}Controller>(() => ${names.pascalCase}Controller());
+    // TODO: register repository, then:
+    // Get.lazyPut(() => GetAll${names.pascalCase}UseCase(Get.find()));
+    // Get.lazyPut(() => ${names.pascalCase}Controller(Get.find()));
   }
 }
 ''',
@@ -254,131 +492,9 @@ class ${names.pascalCase}Binding extends Bindings {
     if (!file.existsSync()) {
       file.createSync(recursive: true);
       file.writeAsStringSync(content);
-      final display = path.replaceAll('${Directory.current.path}/', '');
+      final root = Directory.current.path;
+      final display = path.replaceAll('$root/', '').replaceAll('$root\\', '');
       stdout.writeln('  \x1B[32m✓\x1B[0m  $display');
     }
   }
-
-  // ── templates ─────────────────────────────────────────────────────
-
-  String _entityContent(NameUtils n) => '''import 'package:equatable/equatable.dart';
-
-class ${n.pascalCase}Entity extends Equatable {
-  const ${n.pascalCase}Entity({required this.id});
-
-  final String id;
-
-  @override
-  List<Object?> get props => [id];
-}
-''';
-
-  String _modelContent(NameUtils n) => '''import '../../domain/entities/${n.snakeCase}_entity.dart';
-
-class ${n.pascalCase}Model extends ${n.pascalCase}Entity {
-  const ${n.pascalCase}Model({required super.id});
-
-  factory ${n.pascalCase}Model.fromJson(Map<String, dynamic> json) {
-    return ${n.pascalCase}Model(id: json['id'] as String);
-  }
-
-  Map<String, dynamic> toJson() {
-    return {'id': id};
-  }
-
-  ${n.pascalCase}Model copyWith({String? id}) {
-    return ${n.pascalCase}Model(id: id ?? this.id);
-  }
-}
-''';
-
-  String _repositoryAbstractContent(NameUtils n) => '''import 'package:dartz/dartz.dart';
-import '../../../../core/errors/failures.dart';
-import '../entities/${n.snakeCase}_entity.dart';
-
-abstract class ${n.pascalCase}Repository {
-  Future<Either<Failure, List<${n.pascalCase}Entity>>> getAll();
-}
-''';
-
-  String _repositoryImplContent(NameUtils n) => '''import 'package:dartz/dartz.dart';
-import '../../../../core/errors/failures.dart';
-import '../../domain/entities/${n.snakeCase}_entity.dart';
-import '../../domain/repository/${n.snakeCase}_repository.dart';
-import '../datasource/${n.snakeCase}_remote_datasource.dart';
-
-class ${n.pascalCase}RepositoryImpl implements ${n.pascalCase}Repository {
-  const ${n.pascalCase}RepositoryImpl({required this.remoteDataSource});
-
-  final ${n.pascalCase}RemoteDataSource remoteDataSource;
-
-  @override
-  Future<Either<Failure, List<${n.pascalCase}Entity>>> getAll() async {
-    try {
-      final result = await remoteDataSource.getAll();
-      return Right(result);
-    } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
-    }
-  }
-}
-''';
-
-  String _datasourceAbstractContent(NameUtils n) => '''import '../models/${n.snakeCase}_model.dart';
-
-abstract class ${n.pascalCase}RemoteDataSource {
-  Future<List<${n.pascalCase}Model>> getAll();
-}
-''';
-
-  String _datasourceImplContent(NameUtils n) => '''import '../models/${n.snakeCase}_model.dart';
-import '${n.snakeCase}_remote_datasource.dart';
-
-class ${n.pascalCase}RemoteDataSourceImpl implements ${n.pascalCase}RemoteDataSource {
-  // TODO: inject Dio / ApiClient
-  const ${n.pascalCase}RemoteDataSourceImpl();
-
-  @override
-  Future<List<${n.pascalCase}Model>> getAll() async {
-    // TODO: implement API call
-    throw UnimplementedError();
-  }
-}
-''';
-
-  String _pageContent(NameUtils n) => '''import 'package:flutter/material.dart';
-
-class ${n.pascalCase}Page extends StatelessWidget {
-  const ${n.pascalCase}Page({super.key});
-
-  static const routeName = '/${n.kebabCase}';
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('${n.titleCase}')),
-      body: const Center(child: Text('${n.titleCase} Page')),
-    );
-  }
-}
-''';
-
-  String _routesContent(NameUtils n) => '''// Route constants for the ${n.pascalCase} feature.
-// Register these in your app-level router (e.g. GoRouter or AutoRoute).
-abstract class ${n.pascalCase}Routes {
-  static const root = '/${n.kebabCase}';
-}
-''';
-
-  String _testStubContent(NameUtils n) => '''import 'package:flutter_test/flutter_test.dart';
-
-void main() {
-  group('${n.pascalCase}Repository', () {
-    test('getAll returns data', () {
-      // TODO: implement test
-      expect(true, isTrue);
-    });
-  });
-}
-''';
 }

@@ -5,15 +5,13 @@ import '../../utils/validation_utils.dart';
 import '../../templates/mvvm_templates.dart';
 
 /// `flutter_architect create viewmodel <Name>`
-/// Only works in MVVM projects. Generates a ViewModel + View pair for a
-/// feature that already exists, or standalone if no feature flag is given.
 class ViewModelCreatorCommand extends Command<void> {
   @override
   final String name = 'viewmodel';
 
   @override
   final String description =
-      'Generate a ViewModel and its paired View for an MVVM feature.';
+      'Generate a ViewModel (and View) for an MVVM feature.';
 
   @override
   String get invocation =>
@@ -32,8 +30,8 @@ class ViewModelCreatorCommand extends Command<void> {
     final root = Directory.current.path;
     ValidationUtils.ensureInitialized(root);
 
-    final arch = ValidationUtils.readArchitecture(root);
-    if (arch != 'mvvm') {
+    final config = ValidationUtils.readConfig(root);
+    if (!config.isMvvm) {
       stdout.writeln(
           '\x1B[31mError: This project uses Clean Architecture, not MVVM.\x1B[0m');
       stdout.writeln(
@@ -58,8 +56,22 @@ class ViewModelCreatorCommand extends Command<void> {
         ? '$root/lib/features/${NameUtils(feature).snakeCase}/views'
         : '$root/lib/shared/views';
 
+    final serviceDir = feature != null
+        ? '$root/lib/features/${NameUtils(feature).snakeCase}/services'
+        : '$root/lib/shared/services';
+
     Directory(targetDir).createSync(recursive: true);
     Directory(viewDir).createSync(recursive: true);
+    Directory(serviceDir).createSync(recursive: true);
+
+    final serviceFile =
+        File('$serviceDir/${names.snakeCase}_service.dart');
+    if (!serviceFile.existsSync()) {
+      serviceFile.writeAsStringSync(
+          MvvmTemplates.service(names.pascalCase, names.snakeCase));
+      stdout.writeln(
+          '  \x1B[32m✓\x1B[0m  ${serviceFile.path.replaceAll('$root/', '')}');
+    }
 
     final vmFile = File('$targetDir/${names.snakeCase}_viewmodel.dart');
     if (!vmFile.existsSync()) {
@@ -72,7 +84,12 @@ class ViewModelCreatorCommand extends Command<void> {
     final viewFile = File('$viewDir/${names.snakeCase}_view.dart');
     if (!viewFile.existsSync()) {
       viewFile.writeAsStringSync(
-          MvvmTemplates.view(names.pascalCase, names.snakeCase));
+        MvvmTemplates.view(
+          names.pascalCase,
+          names.snakeCase,
+          useGetIt: config.useGetIt,
+        ),
+      );
       stdout.writeln(
           '  \x1B[32m✓\x1B[0m  ${viewFile.path.replaceAll('$root/', '')}');
     }

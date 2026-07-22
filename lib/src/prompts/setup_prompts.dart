@@ -88,6 +88,37 @@ class SetupPrompts {
       defaultValue: true,
     ).interact();
 
+    final useLocalization = Confirm(
+      prompt: 'Enable localization (l10n)?',
+      defaultValue: true,
+    ).interact();
+
+    var locales = <String>['en'];
+    if (useLocalization) {
+      final extra = Input(
+        prompt: 'Locales (comma-separated, en is always included)?',
+        defaultValue: 'en, ar',
+      ).interact();
+      locales = extra
+          .split(',')
+          .map((e) => e.trim().toLowerCase())
+          .where((e) => e.isNotEmpty)
+          .toSet()
+          .toList();
+      if (!locales.contains('en')) locales.insert(0, 'en');
+    }
+
+    final useFlavors = Confirm(
+      prompt: 'Generate flavors (dev / staging / prod) + env files?',
+      defaultValue: true,
+    ).interact();
+
+    final cicdIdx = Select(
+      prompt: 'CI/CD templates?',
+      options: ['GitHub Actions', 'Codemagic', 'Both', 'None'],
+      initialIndex: 0,
+    ).interact();
+
     final generateAuth = Confirm(
       prompt: 'Generate Auth Module?',
       defaultValue: true,
@@ -111,6 +142,10 @@ class SetupPrompts {
       useEquatable: useEquatable,
       generateAuth: generateAuth,
       generateSample: generateSample,
+      useLocalization: useLocalization,
+      locales: locales,
+      useFlavors: useFlavors,
+      cicd: CicdProvider.values[cicdIdx],
     );
   }
 }

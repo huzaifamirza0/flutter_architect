@@ -45,6 +45,8 @@ class InitCommand extends Command<void> {
         stdout.writeln('\n\x1B[31mSetup aborted.\x1B[0m');
         exit(1);
       }
+    } else if (!dryRun && noInteraction) {
+      config = SetupConfig.defaults(projectName: _detectProjectName(root));
     }
 
     final isMvvm = config?.architecture == ArchitectureType.mvvm;
@@ -62,6 +64,12 @@ class InitCommand extends Command<void> {
       stdout.writeln('  GetIt: ${config.useGetIt}');
       stdout.writeln('  Freezed: ${config.useFreezed}');
       stdout.writeln('  Equatable: ${config.useEquatable}');
+      stdout.writeln('  Localization: ${config.useLocalization}');
+      if (config.useLocalization) {
+        stdout.writeln('  Locales: ${config.locales.join(', ')}');
+      }
+      stdout.writeln('  Flavors: ${config.useFlavors}');
+      stdout.writeln('  CI/CD: ${config.cicd.name}');
       stdout.writeln('  Auth Module: ${config.generateAuth}');
       stdout.writeln('  Sample Feature: ${config.generateSample}');
     }
@@ -71,7 +79,7 @@ class InitCommand extends Command<void> {
       '$libPath/app/router',
       '$libPath/app/themes',
       '$libPath/app/config',
-      '$libPath/app/di',
+      if (config == null || config.useGetIt) '$libPath/app/di',
       '$libPath/core/network',
       '$libPath/core/services',
       '$libPath/core/utils',
@@ -83,7 +91,12 @@ class InitCommand extends Command<void> {
       '$libPath/core/logger',
       if (!isMvvm) '$libPath/core/base',
       '$libPath/features',
-      '$libPath/shared',
+      '$libPath/shared/widgets',
+      if (!isMvvm) ...[
+        '$libPath/shared/models',
+        '$libPath/shared/entities',
+      ],
+      if (isMvvm) '$libPath/shared/models',
     ];
 
     stdout.writeln('\nScaffolding $archLabel at: $libPath\n');
@@ -110,8 +123,17 @@ class InitCommand extends Command<void> {
     }
 
     if (!dryRun && config != null) {
-      // Save architecture choice for future create commands
-      ValidationUtils.saveArchitecture(root, config.architecture.name);
+      ValidationUtils.saveConfig(
+        root: root,
+        architecture: config.architecture.name,
+        stateManagement: config.stateManagement.name,
+        useHive: config.useHive,
+        useGetIt: config.useGetIt,
+        useEquatable: config.useEquatable,
+        networking: config.networking.name,
+        useLocalization: config.useLocalization,
+        useFlavors: config.useFlavors,
+      );
 
       stdout.writeln('\n\x1B[36mGenerating Boilerplate Files...\x1B[0m');
       BoilerplateGenerator(config, root).generate();
@@ -120,16 +142,24 @@ class InitCommand extends Command<void> {
         stdout.writeln('\n\x1B[36mGenerating Auth Module...\x1B[0m');
         final runner = CommandRunner<void>('sub', 'sub')
           ..addCommand(FeatureCreatorCommand());
-        await runner.run(
-            ['feature', 'auth', '--state-management', config.stateManagement.name]);
+        await runner.run([
+          'feature',
+          'auth',
+          '--state-management',
+          config.stateManagement.name,
+        ]);
       }
 
       if (config.generateSample) {
         stdout.writeln('\n\x1B[36mGenerating Sample Feature...\x1B[0m');
         final runner = CommandRunner<void>('sub', 'sub')
           ..addCommand(FeatureCreatorCommand());
-        await runner.run(
-            ['feature', 'todo', '--state-management', config.stateManagement.name]);
+        await runner.run([
+          'feature',
+          'todo',
+          '--state-management',
+          config.stateManagement.name,
+        ]);
       }
     }
 
@@ -164,30 +194,62 @@ class InitCommand extends Command<void> {
         stdout.writeln('\n\x1B[33m[!] Required Dependencies\x1B[0m');
         stdout.writeln(
             '    Please run the following command to install the necessary packages:');
-        stdout.writeln('    \x1B[1mflutter pub add ${packages.join(' ')}\x1B[0m');
+        if (packages.isNotEmpty) {
+          stdout.writeln('    \x1B[1mflutter pub add ${packages.join(' ')}\x1B[0m');
+        }
+        if (config.useLocalization) {
+          stdout.writeln(
+              '    Localization deps were added to pubspec.yaml — run \x1B[1mflutter pub get\x1B[0m');
+          stdout.writeln(
+              '    then \x1B[1mflutter gen-l10n\x1B[0m (or just flutter run).');
+        }
 
         if (config.useFreezed || config.router == RouterType.autoRoute) {
           stdout.writeln('\n\x1B[33m[!] You selected Freezed or AutoRoute.\x1B[0m');
           stdout.writeln(
               '    Don\'t forget to run \x1B[1mdart run build_runner build\x1B[0m');
         }
+
+        if (config.useFlavors) {
+          stdout.writeln('\n\x1B[33m[!] Flavors\x1B[0m');
+          stdout.writeln('    flutter run -t lib/main_development.dart');
+          stdout.writeln('    flutter run -t lib/main_staging.dart');
+          stdout.writeln('    flutter run -t lib/main_production.dart');
+        }
       }
 
       stdout.writeln('\nNext steps:');
       stdout.writeln('  flutter_architect create feature <name>');
+      stdout.writeln('  flutter_architect create screen <Name> --feature <feature>');
+      stdout.writeln('  flutter_architect create widget <Name> [--feature <feature>]');
       if (isMvvm) {
-        stdout.writeln('  flutter_architect create viewmodel <name>');
+        stdout.writeln('  flutter_architect create viewmodel <Name> --feature <feature>');
       } else {
-        stdout.writeln('  flutter_architect create model <Name>');
+        stdout.writeln('  flutter_architect create usecase <Name> --feature <feature>');
+        stdout.writeln('  flutter_architect create model <Name> --feature <feature>');
+        stdout.writeln('  flutter_architect create datasource <Name> --feature <feature>');
       }
+      stdout.writeln('  flutter_architect cicd');
     }
   }
 
   void _printBanner() {
     stdout.writeln('');
     stdout.writeln('\x1B[1m\x1B[34m╔════════════════════════════════════╗\x1B[0m');
-    stdout.writeln('\x1B[1m\x1B[34m║   flutter_architect  v1.0.0        ║\x1B[0m');
+    stdout.writeln('\x1B[1m\x1B[34m║   flutter_architect  v2.0.0        ║\x1B[0m');
     stdout.writeln('\x1B[1m\x1B[34m║   Architecture Generator           ║\x1B[0m');
     stdout.writeln('\x1B[1m\x1B[34m╚════════════════════════════════════╝\x1B[0m');
+  }
+
+  String _detectProjectName(String root) {
+    final pubspecFile = File('$root/pubspec.yaml');
+    if (pubspecFile.existsSync()) {
+      for (final line in pubspecFile.readAsLinesSync()) {
+        if (line.startsWith('name:')) {
+          return line.replaceFirst('name:', '').trim();
+        }
+      }
+    }
+    return 'my_flutter_app';
   }
 }

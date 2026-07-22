@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:flutter_architect/src/commands/init_command.dart';
 import 'package:flutter_architect/src/commands/create_command.dart';
+import 'package:flutter_architect/src/commands/cicd_command.dart';
 
 Future<void> main(List<String> arguments) async {
   final runner = CommandRunner<void>(
@@ -9,7 +10,8 @@ Future<void> main(List<String> arguments) async {
     'Scaffold production-ready Clean Architecture Flutter projects.',
   )
     ..addCommand(InitCommand())
-    ..addCommand(CreateCommand());
+    ..addCommand(CreateCommand())
+    ..addCommand(CicdCommand());
 
   try {
     await runner.run(arguments);

@@ -1,24 +1,58 @@
+## 2.0.0
+
+Production-oriented release: stronger architecture scaffolding plus localization, flavors, CI/CD, and micro-generators.
+
+### Architecture improvements
+- Clean Architecture folder rename to plural layers (`datasources`, `repositories`).
+- Models use `toEntity()` / `fromEntity()` instead of extending entities.
+- Repository error mapping for `ServerException`, `CacheException`, and network failures.
+- Features generate wired UseCases, presentation layers, pages, and GetIt `di/` modules.
+- Hive option generates local datasources with remote-first / local-fallback templates.
+- MVVM gains a `services/` layer; state management choice is respected (BLoC / Riverpod / Provider / GetX).
+- Clean-only core (`UseCase`) is not generated for MVVM projects.
+- Theme, config, DI, logger, constants, and loading widget boilerplate on `init`.
+- `architect.yaml` stores architecture, state management, Hive, GetIt, l10n, and flavors.
+
+### Localization
+- Optional l10n setup: `l10n.yaml`, `lib/l10n/*.arb`, pubspec patch, and `App` wiring.
+
+### Flavors & environment
+- `main_development.dart` / `main_staging.dart` / `main_production.dart`.
+- `.env.*` reference files and `AppConfig.bootstrap(Environment)`.
+- VS Code `launch.json` configurations per flavor.
+
+### CI/CD
+- GitHub Actions and/or Codemagic templates during `init`.
+- Standalone command: `flutter_architect cicd [-p github|codemagic|both]`.
+
+### Micro-generators
+- `create screen <Name> --feature <feature>`
+- `create widget <Name> [--feature <feature>]`
+- `create datasource <Name> --feature <feature> [--local]`
+
+### Bug fixes (pre-publish)
+- Fixed `pubspec.yaml` localization patch (`replaceFirstMapped` for flutter_localizations).
+- `NoParams` is now a const constructor (fixes BLoC `const NoParams()`).
+- `create datasource` also scaffolds matching model + entity stubs.
+- Removed unused import from feature DI templates.
+- `--no-interaction` now applies full default configuration (for CI/smoke tests).
+
+### Breaking changes
+- Feature folder layout changed (`repository` → `repositories`, `datasource` → `datasources`).
+- Generated models no longer extend entities.
+- MVVM feature layout now includes `services/` and SM-specific folders.
+- `SetupConfig` / `architect.yaml` gained new fields (localization, flavors).
+
+Projects generated with **1.x** are not auto-migrated; re-run generators in a new app or adapt paths manually.
+
+---
+
 ## 1.0.0
 
-### 🎉 Initial Release
+### Initial release
 
-The first production-ready release of `flutter_architect` — a CLI tool to instantly scaffold production-ready Flutter projects.
-
-#### Features
-- **Interactive `init` command** — Guided setup wizard to configure your entire project in seconds.
-- **Dual Architecture Support:**
-  - **Clean Architecture** — Full `data`, `domain`, and `presentation` layer scaffolding (Uncle Bob / Reso Coder style).
-  - **MVVM** — Feature-first `models`, `viewmodels`, and `views` scaffolding.
-- **State Management:** BLoC, Riverpod, Provider, GetX, or None.
-- **Routing:** GoRouter, AutoRoute, Navigator 2.0, or Vanilla.
-- **Networking:** REST (Dio), GraphQL, or Both.
-- **Dependency Injection:** GetIt service locator setup.
-- **`create feature`** — Scaffold a full feature module in one command.
-- **`create model`** — Generate a Data Model with `fromJson`, `toJson`, `copyWith`.
-- **`create entity`** — Generate a Domain Entity extending `Equatable`.
-- **`create repository`** — Generate abstract + implementation Repository pair.
-- **`create usecase`** — Generate a UseCase with the Callable Class pattern.
-- **`create viewmodel`** — Generate a ViewModel + View pair (MVVM only).
-- **Guard validation** — Prevents running `create` commands before `init`.
-- **Smart dependency list** — Prints the exact `flutter pub add` command based on your choices.
-- **`--dry-run` flag** — Preview folder structure without writing to disk.
+- Interactive `init` for Clean Architecture or MVVM.
+- State management: BLoC, Riverpod, Provider, GetX, or None.
+- Routing, networking, GetIt DI.
+- Generators: feature, model, entity, repository, usecase, viewmodel.
+- `--dry-run` and dependency install hints.

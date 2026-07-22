@@ -1,20 +1,28 @@
-# flutter_architect 🏗️
+# flutter_architect
 
 [![pub package](https://img.shields.io/pub/v/flutter_architect.svg)](https://pub.dev/packages/flutter_architect)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-**The Flutter starter kit you wish existed.**
+**Build production-ready Flutter applications in minutes.**
 
-Instead of spending two hours manually creating folders, writing generic entity classes, and wiring up Dio/GetIt every time you start a new project, `flutter_architect` generates a complete, production-ready Clean Architecture boilerplate in seconds.
+`flutter_architect` is a CLI that scaffolds Clean Architecture or MVVM Flutter projects — with themes, DI, networking, localization, flavors, CI/CD templates, and day-to-day generators for features, screens, widgets, and more.
 
-## 🚀 Quick Start
+> Works **inside** an existing Flutter project. Create the app with `flutter create`, then run `flutter_architect init`.
 
-Activate the CLI globally:
+---
+
+## Installation
+
 ```bash
 dart pub global activate flutter_architect
 ```
 
-Go to your new Flutter project and initialize the architecture:
+Ensure your PATH includes the pub cache bin directory so `flutter_architect` is available globally.
+
+---
+
+## Quick start
+
 ```bash
 flutter create my_awesome_app
 cd my_awesome_app
@@ -22,78 +30,264 @@ cd my_awesome_app
 flutter_architect init
 ```
 
-The CLI will launch an interactive menu. Use your arrow keys to select your preferred tech stack (State Management, Routing, Networking, Dependency Injection, etc.). 
+The interactive wizard asks for:
 
-![Interactive Menu Preview](https://raw.githubusercontent.com/huzaifamirza0/flutter_architect/main/doc/demo.gif) *(Add a gif here later!)*
+| Prompt | Options |
+|--------|---------|
+| Architecture | Clean Architecture · MVVM |
+| State management | BLoC · Riverpod · Provider · GetX · None |
+| Routing | GoRouter · AutoRoute · Navigator 2.0 · Vanilla |
+| Networking | REST (Dio) · GraphQL · Both · None |
+| DI | GetIt |
+| Localization | Yes / No + locales (e.g. `en, ar`) |
+| Flavors + env | Yes / No (dev · staging · prod) |
+| CI/CD | GitHub Actions · Codemagic · Both · None |
+| Auth / sample feature | Optional modules |
+
+Then install the printed dependencies:
+
+```bash
+flutter pub add ...   # exact command printed by the CLI
+flutter pub get
+```
+
+If localization was enabled:
+
+```bash
+flutter gen-l10n
+# or simply: flutter run
+```
 
 ---
 
-## 🛠️ Commands
+## Commands
 
 ### `init`
-Scaffolds the entire `lib/` directory using Clean Architecture principles (`app/`, `core/`, `features/`, `shared/`). Automatically generates networking clients, error handling, and wires your state management into `main.dart`.
+
+Scaffolds `lib/` with app/core/features/shared, boilerplate files, and optional auth/sample features.
 
 ```bash
 flutter_architect init
+flutter_architect init --dry-run          # preview only
 ```
 
-### `create feature <name>`
-Generates a complete, modular feature folder including `data`, `domain`, and `presentation` layers, and wires up the boilerplate for your chosen state management (BLoC, Riverpod, Provider, or GetX).
+Writes `architect.yaml` so later `create` commands know your architecture and options.
+
+---
+
+### Feature & layer generators
 
 ```bash
+# Full feature module
+flutter_architect create feature booking
 flutter_architect create feature booking --state-management bloc
-```
 
-### `create model <name>`
-Scaffolds a Data Model with `fromJson`, `toJson`, `copyWith`, and `Equatable` automatically generated.
-
-```bash
+# Clean Architecture layers
 flutter_architect create model User --feature auth
-```
-
-### `create entity <name>`
-Scaffolds a Domain Entity extending `Equatable`.
-
-```bash
 flutter_architect create entity User --feature auth
-```
-
-### `create repository <name>`
-Generates an abstract Repository class and its implementation class, wired to return `Either<Failure, T>`.
-
-```bash
 flutter_architect create repository User --feature auth
-```
-
-### `create usecase <name>`
-Scaffolds a UseCase implementing the Callable Class pattern with error handling.
-
-```bash
 flutter_architect create usecase Login --feature auth
+flutter_architect create datasource User --feature auth --local
+
+# MVVM
+flutter_architect create viewmodel Profile --feature profile
 ```
 
 ---
 
-## 🏗️ The Architecture
+### Micro-generators
 
-`flutter_architect` enforces a strict, scalable "Feature-First" Clean Architecture:
+You only pass a **name** and optional **`--feature`**. Paths are chosen from your architecture automatically.
 
-```text
-lib/
-├── app/               # App-level config, DI, Routing, Themes
-├── core/              # Network clients, Base Classes, Errors, Utils
-├── features/
-│   ├── auth/          # Each feature is completely modular
-│   │   ├── data/      # Models, Repositories, DataSources
-│   │   ├── domain/    # Entities, UseCases, Repository Interfaces
-│   │   └── presentation/ # UI, BLoCs/Controllers
-│   └── booking/
-├── shared/            # Reusable widgets and shared entities
-└── main.dart          # Automatically wired with your state management
+```bash
+# Screen / page (+ state stub by default)
+flutter_architect create screen Settings --feature profile
+flutter_architect create screen Settings --feature profile --no-with-state
+
+# Widget (feature or shared)
+flutter_architect create widget UserAvatar --feature profile
+flutter_architect create widget AppButton
+
+# Datasource (Clean only)
+flutter_architect create datasource Order --feature checkout --local
 ```
 
-## 🤝 Contributing
-We welcome contributions! Please open an issue or submit a pull request if you have ideas for new templates, state management options, or CLI improvements.
+| Command | Clean path | MVVM path |
+|---------|------------|-----------|
+| `screen` | `features/<f>/presentation/pages/` | `features/<f>/views/` |
+| `widget --feature` | `.../presentation/widgets/` | `.../views/widgets/` |
+| `widget` (no feature) | `shared/widgets/` | `shared/widgets/` |
+| `datasource` | `features/<f>/data/datasources/` | — |
 
-## 📄 License
-This project is licensed under the MIT License.
+---
+
+### `cicd`
+
+Generate CI templates anytime (also available during `init`):
+
+```bash
+flutter_architect cicd
+flutter_architect cicd -p github
+flutter_architect cicd -p codemagic
+flutter_architect cicd -p both
+```
+
+Creates:
+
+- `.github/workflows/flutter_ci.yml`
+- and/or `codemagic.yaml`
+
+---
+
+## What `init` generates
+
+### App layer
+
+```text
+lib/app/
+├── app.dart                 # MaterialApp (+ theme, l10n, router)
+├── config/
+│   ├── app_config.dart      # app name, Environment
+│   └── env_config.dart      # API URLs per environment
+├── di/
+│   └── service_locator.dart # GetIt (+ feature registrations)
+├── router/
+│   └── app_router.dart
+└── themes/
+    ├── app_colors.dart
+    ├── app_text_styles.dart
+    └── app_theme.dart       # light + dark
+```
+
+### Core
+
+```text
+lib/core/
+├── base/usecase.dart        # Clean only
+├── network/                 # ApiClient, NetworkInfo, GraphQL client
+├── errors/                  # Failures + Exceptions
+├── constants/
+├── logger/
+├── widgets/
+├── storage/
+└── ...
+```
+
+### Localization (optional)
+
+```text
+l10n.yaml
+lib/l10n/
+├── app_en.arb
+├── app_ar.arb               # + any locales you chose
+└── ...
+```
+
+`app.dart` is wired with `AppLocalizations` delegates. `pubspec.yaml` is patched for `flutter_localizations`, `intl`, and `generate: true`.
+
+### Flavors + env (optional)
+
+```text
+lib/main_development.dart
+lib/main_staging.dart
+lib/main_production.dart
+lib/main.dart                # forwards to development
+.env.development
+.env.staging
+.env.production
+.vscode/launch.json
+```
+
+Run a flavor:
+
+```bash
+flutter run -t lib/main_development.dart
+flutter run -t lib/main_staging.dart
+flutter run -t lib/main_production.dart
+```
+
+Each entrypoint calls `AppConfig.bootstrap(Environment.*)` so `EnvConfig` returns the right API base URL.
+
+---
+
+## Folder structures
+
+### Clean Architecture feature
+
+```text
+features/booking/
+├── data/
+│   ├── datasources/         # remote (+ local if Hive)
+│   ├── models/              # toEntity() — does not extend Entity
+│   └── repositories/
+├── domain/
+│   ├── entities/
+│   ├── repositories/
+│   └── usecases/
+├── presentation/
+│   ├── bloc/ | providers/ | controllers/
+│   ├── pages/
+│   └── widgets/
+├── di/                      # GetIt registration
+└── routes/
+```
+
+Layers are wired: **Page → BLoC/Provider → UseCase → Repository → DataSource**, with proper `ServerException` / `CacheException` → `Failure` mapping.
+
+### MVVM feature
+
+```text
+features/booking/
+├── models/
+├── services/
+├── views/
+│   └── widgets/
+├── viewmodels/ | bloc/ | providers/ | controllers/
+└── di/
+```
+
+State management choice is respected (ChangeNotifier, BLoC, Riverpod, or GetX).
+
+---
+
+## Architecture notes
+
+- **Clean:** models use `toEntity()` / `fromEntity()` (composition, not inheritance).
+- **MVVM:** does not generate UseCase / dartz; uses services + viewmodels.
+- Commands that only apply to one architecture are rejected with a clear message (e.g. `entity` on MVVM).
+- Feature GetIt modules are appended into `service_locator.dart` automatically.
+
+---
+
+## Example workflow
+
+```bash
+flutter create shop_app && cd shop_app
+flutter_architect init
+
+flutter pub add dartz equatable get_it dio flutter_bloc go_router
+flutter pub get
+
+flutter_architect create feature catalog --state-management bloc
+flutter_architect create screen ProductDetail --feature catalog
+flutter_architect create widget ProductCard --feature catalog
+
+flutter run -t lib/main_development.dart
+```
+
+---
+
+## Requirements
+
+- Dart SDK `^3.6.2`
+- An existing Flutter project (`pubspec.yaml` present)
+
+---
+
+## Contributing
+
+Issues and PRs are welcome — new templates, state-management options, or CLI improvements.
+
+## License
+
+MIT © Huzaifa Mirza

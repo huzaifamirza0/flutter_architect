@@ -1,10 +1,17 @@
 name: flutter_architect
-description: A CLI to scaffold production-ready Clean Architecture Flutter projects.
-version: 1.0.0
+description: >-
+  CLI to scaffold production-ready Flutter apps with Clean Architecture or MVVM,
+  flavors, localization, CI/CD, and feature generators.
+version: 2.0.0
 repository: https://github.com/huzaifamirza0/flutter_architect
+homepage: https://github.com/huzaifamirza0/flutter_architect
+issue_tracker: https://github.com/huzaifamirza0/flutter_architect/issues
 
 environment:
   sdk: ^3.6.2
+
+executables:
+  flutter_architect:
 
 dependencies:
   args: ^2.5.0

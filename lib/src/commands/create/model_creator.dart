@@ -8,10 +8,12 @@ class ModelCreatorCommand extends Command<void> {
   final String name = 'model';
 
   @override
-  final String description = 'Generate a Data Model class (with copyWith, fromJson, toJson, and Equatable).';
+  final String description =
+      'Generate a Data Model class (fromJson, toJson, copyWith, toEntity).';
 
   @override
-  String get invocation => 'flutter_architect create model <Name> [--feature <featureName>]';
+  String get invocation =>
+      'flutter_architect create model <Name> [--feature <featureName>]';
 
   ModelCreatorCommand() {
     argParser.addOption(
@@ -28,22 +30,28 @@ class ModelCreatorCommand extends Command<void> {
 
     final rest = argResults!.rest;
     if (rest.isEmpty) {
-      usageException('Please provide a model name.\n  Example: flutter_architect create model User --feature auth');
+      usageException(
+          'Please provide a model name.\n  Example: flutter_architect create model User --feature auth');
     }
 
     final names = NameUtils(rest.first);
     final feature = argResults!['feature'] as String?;
+    final config = ValidationUtils.readConfig(root);
 
     final targetDir = feature != null
-        ? '$root/lib/features/${NameUtils(feature).snakeCase}/data/models'
+        ? config.isMvvm
+            ? '$root/lib/features/${NameUtils(feature).snakeCase}/models'
+            : '$root/lib/features/${NameUtils(feature).snakeCase}/data/models'
         : '$root/lib/shared/models';
 
     Directory(targetDir).createSync(recursive: true);
 
     final filePath = '$targetDir/${names.snakeCase}_model.dart';
-    final content = '''import 'package:equatable/equatable.dart';
+    final String content;
+    if (config.isClean && feature != null) {
+      content = '''import '../../domain/entities/${names.snakeCase}_entity.dart';
 
-class ${names.pascalCase}Model extends Equatable {
+class ${names.pascalCase}Model {
   const ${names.pascalCase}Model({required this.id});
 
   final String id;
@@ -52,27 +60,48 @@ class ${names.pascalCase}Model extends Equatable {
     return ${names.pascalCase}Model(id: json['id'] as String);
   }
 
-  Map<String, dynamic> toJson() {
-    return {'id': id};
+  Map<String, dynamic> toJson() => {'id': id};
+
+  ${names.pascalCase}Entity toEntity() => ${names.pascalCase}Entity(id: id);
+
+  factory ${names.pascalCase}Model.fromEntity(${names.pascalCase}Entity entity) {
+    return ${names.pascalCase}Model(id: entity.id);
   }
 
   ${names.pascalCase}Model copyWith({String? id}) {
     return ${names.pascalCase}Model(id: id ?? this.id);
   }
-
-  @override
-  List<Object?> get props => [id];
 }
 ''';
+    } else {
+      content = '''class ${names.pascalCase}Model {
+  const ${names.pascalCase}Model({required this.id});
+
+  final String id;
+
+  factory ${names.pascalCase}Model.fromJson(Map<String, dynamic> json) {
+    return ${names.pascalCase}Model(id: json['id'] as String);
+  }
+
+  Map<String, dynamic> toJson() => {'id': id};
+
+  ${names.pascalCase}Model copyWith({String? id}) {
+    return ${names.pascalCase}Model(id: id ?? this.id);
+  }
+}
+''';
+    }
 
     _writeFile(filePath, content, root);
-    stdout.writeln('\n\x1B[32m✅  Model "${names.pascalCase}Model" created.\x1B[0m');
+    stdout.writeln(
+        '\n\x1B[32m✅  Model "${names.pascalCase}Model" created.\x1B[0m');
   }
 
   void _writeFile(String path, String content, String root) {
     final file = File(path);
     if (file.existsSync()) {
-      stdout.writeln('\x1B[33m  ~ ${path.replaceAll('$root/', '')} (already exists)\x1B[0m');
+      stdout.writeln(
+          '\x1B[33m  ~ ${path.replaceAll('$root/', '')} (already exists)\x1B[0m');
       return;
     }
     file.writeAsStringSync(content);
