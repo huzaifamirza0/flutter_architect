@@ -296,7 +296,13 @@ See the [`example/`](example/) folder:
 
 ## Contributing
 
-Issues and PRs are welcome — new templates, state-management options, or CLI improvements.
+Contributions are welcome — bug fixes, new generators/templates, docs, and examples.
+
+1. Read **[CONTRIBUTING.md](CONTRIBUTING.md)**
+2. Open an issue for bugs/features (templates available)
+3. Fork, branch, and submit a PR
+
+Please follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
